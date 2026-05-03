@@ -165,6 +165,80 @@ SherpaOnnxGetKeywordResultAsJson(
 SHERPA_ONNX_API void
 SherpaOnnxFreeKeywordResultJson(const char *s);
 
+// ============================================================
+// VAD
+// ============================================================
+
+typedef struct SherpaOnnxSileroVadModelConfig {
+  const char *model;
+  float threshold;
+  float min_silence_duration;
+  float min_speech_duration;
+  int32_t window_size;
+  float max_speech_duration;
+} SherpaOnnxSileroVadModelConfig;
+
+typedef struct SherpaOnnxTenVadModelConfig {
+  const char *model;
+  float threshold;
+  float min_silence_duration;
+  float min_speech_duration;
+  int32_t window_size;
+  float max_speech_duration;
+} SherpaOnnxTenVadModelConfig;
+
+typedef struct SherpaOnnxVadModelConfig {
+  SherpaOnnxSileroVadModelConfig silero_vad;
+  int32_t sample_rate;
+  int32_t num_threads;
+  const char *provider;
+  int32_t debug;
+  SherpaOnnxTenVadModelConfig ten_vad;
+} SherpaOnnxVadModelConfig;
+
+typedef struct SherpaOnnxSpeechSegment {
+  int32_t start;
+  float *samples;
+  int32_t n;
+} SherpaOnnxSpeechSegment;
+
+typedef struct SherpaOnnxVoiceActivityDetector SherpaOnnxVoiceActivityDetector;
+
+SHERPA_ONNX_API const SherpaOnnxVoiceActivityDetector*
+SherpaOnnxCreateVoiceActivityDetector(const SherpaOnnxVadModelConfig *config,
+                                      float buffer_size_in_seconds);
+
+SHERPA_ONNX_API void
+SherpaOnnxDestroyVoiceActivityDetector(const SherpaOnnxVoiceActivityDetector *p);
+
+SHERPA_ONNX_API void
+SherpaOnnxVoiceActivityDetectorAcceptWaveform(
+    const SherpaOnnxVoiceActivityDetector *p, const float *samples, int32_t n);
+
+SHERPA_ONNX_API int32_t
+SherpaOnnxVoiceActivityDetectorEmpty(const SherpaOnnxVoiceActivityDetector *p);
+
+SHERPA_ONNX_API int32_t
+SherpaOnnxVoiceActivityDetectorDetected(const SherpaOnnxVoiceActivityDetector *p);
+
+SHERPA_ONNX_API void
+SherpaOnnxVoiceActivityDetectorPop(const SherpaOnnxVoiceActivityDetector *p);
+
+SHERPA_ONNX_API void
+SherpaOnnxVoiceActivityDetectorClear(const SherpaOnnxVoiceActivityDetector *p);
+
+SHERPA_ONNX_API const SherpaOnnxSpeechSegment*
+SherpaOnnxVoiceActivityDetectorFront(const SherpaOnnxVoiceActivityDetector *p);
+
+SHERPA_ONNX_API void
+SherpaOnnxDestroySpeechSegment(const SherpaOnnxSpeechSegment *p);
+
+SHERPA_ONNX_API void
+SherpaOnnxVoiceActivityDetectorReset(const SherpaOnnxVoiceActivityDetector *p);
+
+SHERPA_ONNX_API void
+SherpaOnnxVoiceActivityDetectorFlush(const SherpaOnnxVoiceActivityDetector *p);
+
 #ifdef __cplusplus
 }
 #endif
