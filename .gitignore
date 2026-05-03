@@ -1,0 +1,38 @@
+# Binaries
+Binaries/*
+!Binaries/.gitkeep
+
+# Build artifacts
+Intermediate/*
+!Intermediate/.gitkeep
+
+# Third-party libraries (onnxruntime.dll) - kept for plugin compilation and runtime
+# Source/ThirdParty/*/lib/
+
+# Onnx models (large binary files)
+Content/Models/*.onnx
+
+# Python virtual environments
+Tools/**/*.venv/
+Tools/**/*.venv37/
+Tools/PythonVirtualEnv/
+
+# IDE and editor files
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.rsps
+*.sarif
+
+# Unreal build cache
+DerivedDataCache/
+.rdcache/
+
+# Logs
+*.log
+
+test_wavs

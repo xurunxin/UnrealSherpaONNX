@@ -1,0 +1,24 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "1.0.0",
+  "FriendlyName": "Sherpa ONNX - Wake Word Detection",
+  "Description": "Offline keyword spotting using sherpa-onnx Zipformer models. Supports cross-platform deployment on Windows, Linux, and Android.",
+  "Category": "Audio",
+  "CreatedBy": "DoctorAssistant Team",
+  "CanContainContent": true,
+  "Modules": [
+    {
+      "Name": "SherpaONNX",
+      "Type": "Runtime",
+      "LoadingPhase": "Default",
+      "PlatformAllowList": ["Win64", "Linux", "Android"]
+    }
+  ],
+  "Plugins": [
+    {
+      "Name": "AudioCapture",
+      "Enabled": true
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root xmlns:android="http://schemas.android.com/apk/res/android">
+  <init>
+    <log text="SherpaONNX Android APL init"/>
+  </init>
+
+  <androidManifestUpdates>
+    <addPermission android:name="android.permission.RECORD_AUDIO"/>
+  </androidManifestUpdates>
+
+  <gameActivityImportAdditions>
+    <insert>
+import android.Manifest;
+import android.content.pm.PackageManager;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+    </insert>
+  </gameActivityImportAdditions>
+
+  <gameActivityOnCreateAdditions>
+    <insert>
+if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+        != PackageManager.PERMISSION_GRANTED)
+{
+    ActivityCompat.requestPermissions(this,
+        new String[]{ Manifest.permission.RECORD_AUDIO }, 200);
+}
+    </insert>
+  </gameActivityOnCreateAdditions>
+</root>
