@@ -2,7 +2,7 @@
 
 #if WITH_SHERPA_ONNX
 #include "KwsWorker.h"
-#include "Kws/KwsAudioCapture.h"
+#include "SherpaAudioCapture.h"
 #endif
 
 #include "JsonObjectConverter.h"
@@ -23,17 +23,17 @@ void UKwsWakeWordComponent::BeginPlay()
 
 void UKwsWakeWordComponent::EndPlay(const EEndPlayReason::Type Reason)
 {
-	StopListening();
+	StopKWS();
 	Super::EndPlay(Reason);
 }
 
-bool UKwsWakeWordComponent::StartListening(const FSherpaKwsModelConfig& Config)
+bool UKwsWakeWordComponent::StartKWS(const FSherpaKwsModelConfig& Config)
 {
 #if !WITH_SHERPA_ONNX
 	UE_LOG(LogKwsComponent, Error, TEXT("WITH_SHERPA_ONNX=0 — plugin built without native support"));
 	return false;
 #else
-	StopListening();
+	StopKWS();
 
 	CurrentConfig = Config;
 
@@ -58,7 +58,8 @@ bool UKwsWakeWordComponent::StartListening(const FSherpaKwsModelConfig& Config)
 		return false;
 	}
 
-	AudioCapture = NewObject<UKwsAudioCapture>(this);
+	// 统一音频采集（16kHz mono float32）
+	AudioCapture = NewObject<USherpaAudioCapture>(this);
 	if (!AudioCapture)
 	{
 		delete Worker;
@@ -67,20 +68,29 @@ bool UKwsWakeWordComponent::StartListening(const FSherpaKwsModelConfig& Config)
 		return false;
 	}
 
-	AudioCapture->SetWorker(Worker);
+	// KWS 作为消费者注册到统一采集通道
+	FKwsWorker* KwsWorker = Worker;
+	AudioCapture->AddConsumer([KwsWorker](const TArray<float>& Samples) {
+		KwsWorker->PushAudio(Samples);
+	});
+
 	AudioCapture->RegisterComponent();
 	AudioCapture->bAutoActivate = false;
+	AudioCapture->Activate(true);
+	AudioCapture->StartCapturing();
 
-	UE_LOG(LogKwsComponent, Log, TEXT("KWS listening starting"));
+	UE_LOG(LogKwsComponent, Log, TEXT("KWS started (mic auto-capture)"));
+	OnKwsReady.Broadcast();
 	return true;
 #endif
 }
 
-void UKwsWakeWordComponent::StopListening()
+void UKwsWakeWordComponent::StopKWS()
 {
 	if (AudioCapture)
 	{
 		AudioCapture->StopCapturing();
+		AudioCapture->ClearConsumers();
 		AudioCapture->Deactivate();
 		AudioCapture->DestroyComponent();
 		AudioCapture = nullptr;
@@ -93,7 +103,7 @@ void UKwsWakeWordComponent::StopListening()
 		Worker = nullptr;
 	}
 
-	UE_LOG(LogKwsComponent, Log, TEXT("KWS listening stopped"));
+	UE_LOG(LogKwsComponent, Log, TEXT("KWS stopped"));
 }
 
 bool UKwsWakeWordComponent::SetKeywords(const FString& Keywords)
@@ -108,7 +118,7 @@ bool UKwsWakeWordComponent::SetKeywords(const FString& Keywords)
 	return false;
 }
 
-bool UKwsWakeWordComponent::IsListening() const
+bool UKwsWakeWordComponent::IsRunning() const
 {
 	return Worker != nullptr && Worker->IsRunning();
 }
@@ -151,18 +161,11 @@ void UKwsWakeWordComponent::HandleKeywordResult(const FString& Json)
 
 void UKwsWakeWordComponent::HandleKwsError()
 {
-	StopListening();
+	StopKWS();
 	OnKwsError.Broadcast(TEXT("KWS worker encountered an error"));
 }
 
 void UKwsWakeWordComponent::HandleKwsReady()
 {
-	if (AudioCapture)
-	{
-		AudioCapture->Activate(true);
-		AudioCapture->StartCapturing();
-	}
-
-	UE_LOG(LogKwsComponent, Log, TEXT("KWS listening started"));
-	OnKwsReady.Broadcast();
+	// Worker 就绪时无需额外操作，音频采集已在 StartKWS 中启动
 }

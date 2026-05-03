@@ -22,10 +22,22 @@ bool SherpaKws_LoadLibrary()
 	G_API.IsReady                         = &SherpaOnnxIsKeywordStreamReady;
 	G_API.Decode                          = &SherpaOnnxDecodeKeywordStream;
 	G_API.Reset                           = &SherpaOnnxResetKeywordStream;
-	G_API.GetResult                       = &SherpaOnnxGetKeywordResult;
-	G_API.DestroyResult                   = &SherpaOnnxDestroyKeywordResult;
-	G_API.GetResultJson                   = &SherpaOnnxGetKeywordResultAsJson;
-	G_API.FreeResultJson                  = &SherpaOnnxFreeKeywordResultJson;
+	G_API.GetResult                   = &SherpaOnnxGetKeywordResult;
+	G_API.DestroyResult               = &SherpaOnnxDestroyKeywordResult;
+	G_API.GetResultJson               = &SherpaOnnxGetKeywordResultAsJson;
+	G_API.FreeResultJson              = &SherpaOnnxFreeKeywordResultJson;
+
+	G_API.CreateVoiceActivityDetector    = &SherpaOnnxCreateVoiceActivityDetector;
+	G_API.DestroyVoiceActivityDetector   = &SherpaOnnxDestroyVoiceActivityDetector;
+	G_API.VadAcceptWaveform              = &SherpaOnnxVoiceActivityDetectorAcceptWaveform;
+	G_API.VadEmpty                       = &SherpaOnnxVoiceActivityDetectorEmpty;
+	G_API.VadDetected                    = &SherpaOnnxVoiceActivityDetectorDetected;
+	G_API.VadPop                         = &SherpaOnnxVoiceActivityDetectorPop;
+	G_API.VadClear                       = &SherpaOnnxVoiceActivityDetectorClear;
+	G_API.VadFront                       = &SherpaOnnxVoiceActivityDetectorFront;
+	G_API.DestroySpeechSegment           = &SherpaOnnxDestroySpeechSegment;
+	G_API.VadReset                       = &SherpaOnnxVoiceActivityDetectorReset;
+	G_API.VadFlush                       = &SherpaOnnxVoiceActivityDetectorFlush;
 	return G_API.IsLoaded();
 }
 
@@ -164,6 +176,18 @@ bool SherpaKws_LoadLibrary()
 	G_API.DestroyResult                   = (Fn_DestroyResult)    Load(TEXT("SherpaOnnxDestroyKeywordResult"));
 	G_API.GetResultJson                   = (Fn_GetResultJson)    Load(TEXT("SherpaOnnxGetKeywordResultAsJson"));
 	G_API.FreeResultJson                  = (Fn_FreeResultJson)   Load(TEXT("SherpaOnnxFreeKeywordResultJson"));
+
+	G_API.CreateVoiceActivityDetector     = (Fn_VadCreate)         Load(TEXT("SherpaOnnxCreateVoiceActivityDetector"));
+	G_API.DestroyVoiceActivityDetector    = (Fn_VadDestroy)        Load(TEXT("SherpaOnnxDestroyVoiceActivityDetector"));
+	G_API.VadAcceptWaveform               = (Fn_VadAcceptWaveform) Load(TEXT("SherpaOnnxVoiceActivityDetectorAcceptWaveform"));
+	G_API.VadEmpty                        = (Fn_VadEmpty)          Load(TEXT("SherpaOnnxVoiceActivityDetectorEmpty"));
+	G_API.VadDetected                     = (Fn_VadDetected)       Load(TEXT("SherpaOnnxVoiceActivityDetectorDetected"));
+	G_API.VadPop                          = (Fn_VadPop)            Load(TEXT("SherpaOnnxVoiceActivityDetectorPop"));
+	G_API.VadClear                        = (Fn_VadClear)          Load(TEXT("SherpaOnnxVoiceActivityDetectorClear"));
+	G_API.VadFront                        = (Fn_VadFront)          Load(TEXT("SherpaOnnxVoiceActivityDetectorFront"));
+	G_API.DestroySpeechSegment            = (Fn_VadDestroySegment) Load(TEXT("SherpaOnnxDestroySpeechSegment"));
+	G_API.VadReset                        = (Fn_VadReset)          Load(TEXT("SherpaOnnxVoiceActivityDetectorReset"));
+	G_API.VadFlush                        = (Fn_VadFlush)          Load(TEXT("SherpaOnnxVoiceActivityDetectorFlush"));
 
 	if (!G_API.IsLoaded())
 	{

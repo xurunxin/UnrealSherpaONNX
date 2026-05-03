@@ -20,6 +20,19 @@ using Fn_DestroyResult = void (*)(const SherpaOnnxKeywordResult*);
 using Fn_GetResultJson = const char* (*)(const SherpaOnnxKeywordSpotter*, const SherpaOnnxOnlineStream*);
 using Fn_FreeResultJson = void (*)(const char*);
 
+// VAD function pointer types
+using Fn_VadCreate         = const SherpaOnnxVoiceActivityDetector* (*)(const SherpaOnnxVadModelConfig*, float);
+using Fn_VadDestroy        = void (*)(const SherpaOnnxVoiceActivityDetector*);
+using Fn_VadAcceptWaveform = void (*)(const SherpaOnnxVoiceActivityDetector*, const float*, int32_t);
+using Fn_VadEmpty          = int32_t (*)(const SherpaOnnxVoiceActivityDetector*);
+using Fn_VadDetected       = int32_t (*)(const SherpaOnnxVoiceActivityDetector*);
+using Fn_VadPop            = void (*)(const SherpaOnnxVoiceActivityDetector*);
+using Fn_VadClear          = void (*)(const SherpaOnnxVoiceActivityDetector*);
+using Fn_VadFront          = const SherpaOnnxSpeechSegment* (*)(const SherpaOnnxVoiceActivityDetector*);
+using Fn_VadDestroySegment = void (*)(const SherpaOnnxSpeechSegment*);
+using Fn_VadReset          = void (*)(const SherpaOnnxVoiceActivityDetector*);
+using Fn_VadFlush          = void (*)(const SherpaOnnxVoiceActivityDetector*);
+
 struct SHERPAONNX_API FKwsNativeAPI
 {
 	Fn_KwsCreate       CreateKeywordSpotter   = nullptr;
@@ -36,7 +49,21 @@ struct SHERPAONNX_API FKwsNativeAPI
 	Fn_GetResultJson   GetResultJson          = nullptr;
 	Fn_FreeResultJson  FreeResultJson         = nullptr;
 
+	// VAD
+	Fn_VadCreate          CreateVoiceActivityDetector  = nullptr;
+	Fn_VadDestroy         DestroyVoiceActivityDetector = nullptr;
+	Fn_VadAcceptWaveform  VadAcceptWaveform            = nullptr;
+	Fn_VadEmpty           VadEmpty                     = nullptr;
+	Fn_VadDetected        VadDetected                  = nullptr;
+	Fn_VadPop             VadPop                       = nullptr;
+	Fn_VadClear           VadClear                     = nullptr;
+	Fn_VadFront           VadFront                     = nullptr;
+	Fn_VadDestroySegment  DestroySpeechSegment         = nullptr;
+	Fn_VadReset           VadReset                     = nullptr;
+	Fn_VadFlush           VadFlush                     = nullptr;
+
 	bool IsLoaded() const { return CreateKeywordSpotter != nullptr; }
+	bool IsVadLoaded() const { return CreateVoiceActivityDetector != nullptr; }
 };
 
 bool SherpaKws_LoadLibrary();

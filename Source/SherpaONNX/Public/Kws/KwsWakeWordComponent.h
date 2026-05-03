@@ -13,7 +13,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnKwsReady);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnKwsError, const FString&, ErrorMessage);
 
 class FKwsWorker;
-class UKwsAudioCapture;
+class USherpaAudioCapture;
 
 UCLASS(ClassGroup=(SherpaONNX), meta=(BlueprintSpawnableComponent))
 class SHERPAONNX_API UKwsWakeWordComponent : public UActorComponent
@@ -24,16 +24,26 @@ public:
 	UKwsWakeWordComponent();
 
 	UFUNCTION(BlueprintCallable, Category = "Sherpa KWS")
-	bool StartListening(const FSherpaKwsModelConfig& Config);
+	bool StartKWS(const FSherpaKwsModelConfig& Config);
 
 	UFUNCTION(BlueprintCallable, Category = "Sherpa KWS")
-	void StopListening();
+	void StopKWS();
 
 	UFUNCTION(BlueprintCallable, Category = "Sherpa KWS")
 	bool SetKeywords(const FString& Keywords);
 
 	UFUNCTION(BlueprintPure, Category = "Sherpa KWS")
-	bool IsListening() const;
+	bool IsRunning() const;
+
+	// ---- 旧接口（兼容，标记为废弃） ----
+	UFUNCTION(BlueprintCallable, Category = "Sherpa KWS", meta = (DeprecatedFunction, DeprecationMessage = "Use StartKWS instead"))
+	bool StartListening(const FSherpaKwsModelConfig& Config) { return StartKWS(Config); }
+
+	UFUNCTION(BlueprintCallable, Category = "Sherpa KWS", meta = (DeprecatedFunction, DeprecationMessage = "Use StopKWS instead"))
+	void StopListening() { StopKWS(); }
+
+	UFUNCTION(BlueprintPure, Category = "Sherpa KWS", meta = (DeprecatedFunction, DeprecationMessage = "Use IsRunning instead"))
+	bool IsListening() const { return IsRunning(); }
 
 	UPROPERTY(BlueprintAssignable, Category = "Sherpa KWS|Events")
 	FOnKeywordDetected OnKeywordDetected;
@@ -54,7 +64,7 @@ private:
 	FKwsWorker* Worker = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UKwsAudioCapture> AudioCapture;
+	TObjectPtr<USherpaAudioCapture> AudioCapture;
 
 	void HandleKeywordResult(const FString& Json);
 	void HandleKwsError();
