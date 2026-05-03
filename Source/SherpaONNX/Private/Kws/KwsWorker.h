@@ -42,9 +42,9 @@ private:
 
 	const SherpaOnnxKeywordSpotter* Spotter = nullptr;
 	const SherpaOnnxOnlineStream*    Stream  = nullptr;
+	FCriticalSection SpotterLock;   // guards Spotter + Stream across threads
 
 	TQueue<TArray<float>> AudioQueue;
-	FCriticalSection QueueLock;
 
 	FRunnableThread* Thread = nullptr;
 	std::atomic<bool> bRunning{false};

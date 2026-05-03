@@ -2,6 +2,8 @@
 
 #if WITH_SHERPA_ONNX
 
+DEFINE_LOG_CATEGORY_STATIC(LogSherpaKwsNative, Log, All);
+
 static void* G_DllHandle = nullptr;
 static void* G_OrtDllHandle = nullptr;
 static void* G_OrtProvidersDllHandle = nullptr;
@@ -100,7 +102,7 @@ bool SherpaKws_LoadLibrary()
 	G_OrtProvidersDllHandle = FPlatformProcess::GetDllHandle(*OrtProvidersPath);
 	if (!G_OrtProvidersDllHandle)
 	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to load ONNX Runtime provider library: %s"), *OrtProvidersPath);
+		UE_LOG(LogSherpaKwsNative, Error, TEXT("Failed to load ONNX Runtime provider library: %s"), *OrtProvidersPath);
 		return false;
 	}
 
@@ -108,7 +110,7 @@ bool SherpaKws_LoadLibrary()
 	G_OrtDllHandle = FPlatformProcess::GetDllHandle(*OrtPath);
 	if (!G_OrtDllHandle)
 	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to load ONNX Runtime library: %s"), *OrtPath);
+		UE_LOG(LogSherpaKwsNative, Error, TEXT("Failed to load ONNX Runtime library: %s"), *OrtPath);
 		FPlatformProcess::FreeDllHandle(G_OrtProvidersDllHandle);
 		G_OrtProvidersDllHandle = nullptr;
 		return false;
@@ -117,9 +119,9 @@ bool SherpaKws_LoadLibrary()
 	FString OrtRuntimeVersion = TEXT("unknown");
 	if (!IsOnnxRuntimeCompatible(G_OrtDllHandle, OrtRuntimeVersion))
 	{
-		UE_LOG(LogTemp, Error,
+		UE_LOG(LogSherpaKwsNative, Error,
 			TEXT("sherpa-onnx-c-api requires ONNX Runtime API %u, but loaded onnxruntime.dll is %s from %s. "
-				 "Replace the plugin Win64 onnxruntime.dll with ONNX Runtime 1.24.x, or rebuild sherpa-onnx-c-api against the bundled runtime."),
+				 "Replace the plugin onnxruntime.dll with ONNX Runtime 1.24+, or rebuild sherpa-onnx-c-api."),
 			RequiredOrtApiVersion,
 			*OrtRuntimeVersion,
 			*OrtPath);
@@ -131,13 +133,13 @@ bool SherpaKws_LoadLibrary()
 		return false;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("Loaded ONNX Runtime %s from %s"), *OrtRuntimeVersion, *OrtPath);
+	UE_LOG(LogSherpaKwsNative, Log, TEXT("Loaded ONNX Runtime %s from %s"), *OrtRuntimeVersion, *OrtPath);
 
 	const FString SherpaPath = GetWin64LibraryPath(TEXT("sherpa-onnx-c-api.dll"));
 	G_DllHandle = FPlatformProcess::GetDllHandle(*SherpaPath);
 	if (!G_DllHandle)
 	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to load sherpa-onnx native library: %s"), *SherpaPath);
+		UE_LOG(LogSherpaKwsNative, Error, TEXT("Failed to load sherpa-onnx native library: %s"), *SherpaPath);
 		FPlatformProcess::FreeDllHandle(G_OrtDllHandle);
 		G_OrtDllHandle = nullptr;
 		FPlatformProcess::FreeDllHandle(G_OrtProvidersDllHandle);

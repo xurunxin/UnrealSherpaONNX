@@ -8,6 +8,12 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogKwsAudioCapture, Log, All);
 
+static TAutoConsoleVariable<bool> CVarSherpaKwsDebugCapture(
+	TEXT("SherpaONNX.Debug.Capture"),
+	false,
+	TEXT("Log per-chunk audio capture details (RMS/peak)"),
+	ECVF_Default);
+
 namespace
 {
 constexpr int32 KwsTargetSampleRate = 16000;
@@ -20,6 +26,11 @@ void LogAudioLevelIfNeeded(
 	int32 SourceSampleRate,
 	int32 SourceChannels)
 {
+	if (!CVarSherpaKwsDebugCapture.GetValueOnAnyThread())
+	{
+		return;
+	}
+
 	FramesSinceLastLog += NumSamples;
 	if (FramesSinceLastLog < KwsAudioLogIntervalFrames)
 	{
@@ -37,11 +48,12 @@ void LogAudioLevelIfNeeded(
 	}
 
 	const float Rms = FMath::Sqrt(static_cast<float>(SumSquares / FMath::Max(1, NumSamples)));
-	UE_LOG(LogKwsAudioCapture, Log, TEXT("KWS audio chunk: source_rate=%d, source_channels=%d, output_samples=%d, rms=%.6f, peak=%.6f"),
+	UE_LOG(LogKwsAudioCapture, Log,
+		TEXT("KWS audio: rate=%d ch=%d out=%d rms=%.4f peak=%.3f"),
 		SourceSampleRate, SourceChannels, NumSamples, Rms, Peak);
 	FramesSinceLastLog = 0;
 }
-}
+} // namespace
 
 UKwsAudioCapture::UKwsAudioCapture(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -53,7 +65,8 @@ bool UKwsAudioCapture::Init(int32& SampleRate)
 	const bool bInitialized = Super::Init(SampleRate);
 	CaptureSampleRate = SampleRate;
 
-	UE_LOG(LogKwsAudioCapture, Log, TEXT("KWS audio capture initialized: sample rate=%d, channels=%d, target sample rate=%d"),
+	UE_LOG(LogKwsAudioCapture, Log,
+		TEXT("KWS audio capture initialized: sample_rate=%d, channels=%d, target=%d"),
 		CaptureSampleRate, NumChannels, KwsTargetSampleRate);
 
 	return bInitialized;
@@ -97,7 +110,8 @@ int32 UKwsAudioCapture::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 		{
 			TArray<float> Buffer(MonoBuffer.GetData(), MonoBuffer.Num());
 			Worker->PushAudio(Buffer);
-			LogAudioLevelIfNeeded(CapturedFramesSinceLastLog, MonoBuffer.GetData(), MonoBuffer.Num(), CaptureSampleRate, InputChannels);
+			LogAudioLevelIfNeeded(CapturedFramesSinceLastLog, MonoBuffer.GetData(),
+				MonoBuffer.Num(), CaptureSampleRate, InputChannels);
 		}
 		else
 		{
@@ -122,13 +136,14 @@ int32 UKwsAudioCapture::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 				{
 					TArray<float> Buffer(ResampledBuffer.GetData(), OutputSamples);
 					Worker->PushAudio(Buffer);
-					LogAudioLevelIfNeeded(CapturedFramesSinceLastLog, ResampledBuffer.GetData(), OutputSamples, CaptureSampleRate, InputChannels);
+					LogAudioLevelIfNeeded(CapturedFramesSinceLastLog,
+						ResampledBuffer.GetData(), OutputSamples, CaptureSampleRate, InputChannels);
 				}
 			}
 			else
 			{
-				UE_LOG(LogKwsAudioCapture, Warning, TEXT("KWS audio resample failed: source sample rate=%d, target sample rate=%d"),
-					CaptureSampleRate, KwsTargetSampleRate);
+				UE_LOG(LogKwsAudioCapture, Warning,
+					TEXT("KWS audio resample failed: %d -> %d"), CaptureSampleRate, KwsTargetSampleRate);
 			}
 		}
 	}
@@ -141,11 +156,9 @@ void UKwsAudioCapture::StartCapturing()
 {
 	CapturedFramesSinceLastLog = 0;
 	bCapturing = true;
-	UE_LOG(LogKwsAudioCapture, Log, TEXT("KWS audio capture forwarding started"));
 }
 
 void UKwsAudioCapture::StopCapturing()
 {
 	bCapturing = false;
-	UE_LOG(LogKwsAudioCapture, Log, TEXT("KWS audio capture forwarding stopped"));
 }
