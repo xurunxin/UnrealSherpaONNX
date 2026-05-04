@@ -8,8 +8,9 @@
 |------|------|---------|---------|
 | **KWS** (关键词唤醒) | Zipformer 3M (中英双语) | `UKwsWakeWordComponent` | `StartKWS` / `StopKWS` |
 | **VAD** (语音活动检测) | Silero VAD (208KB int8) | `USherpaVadComponent` | `StartVAD` / `StopVAD` |
+| **ASR** (流式语音识别) | Zipformer 122-567MB | `USherpaAsrComponent` | `Start ASR (Preset)` / `StopASR` |
 
-**统一音频采集**：`USherpaAudioCapture` 一次麦克风采集 + 重采样 → 16kHz mono → 同时供给 KWS 和 VAD，零冗余。
+**统一音频采集**：`USherpaAudioCapture` 一次麦克风采集 + 重采样 → 16kHz mono → 同时供给 KWS、VAD 和 ASR，零冗余。
 
 ---
 
@@ -21,9 +22,13 @@ Plugins/SherpaONNX/
 ├── README.md
 ├── Content/
 │   └── Models/
-│       ├── sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20/  # KWS 中英双语模型
-│       ├── Vad/Silero/silero_vad.int8.onnx                 # VAD 模型 (208KB)
-│       └── keywords.txt                                    # 默认关键词
+│       ├── Kws/zh-en-3M/                        # KWS 中英双语模型
+│       ├── Vad/Silero/silero_vad.int8.onnx       # VAD 模型 (208KB)
+│       └── Asr/                                   # ASR 模型目录
+│           ├── sherpa-onnx-...bilingual-zh-en.../  # 中英双语 (342MB)
+│           ├── zh-int8/sherpa-onnx-...zh-int8.../  # 纯中文 int8 (122MB)
+│           ├── zh-fp32/sherpa-onnx-...zh.../       # 纯中文 fp32 (567MB)
+│           └── en-fp32/sherpa-onnx-...en.../       # 纯英文 (296MB)
 ├── Resources/
 └── Source/
     ├── SherpaONNX/
@@ -40,6 +45,9 @@ Plugins/SherpaONNX/
     │   │   └── Vad/
     │   │       ├── SherpaVadTypes.h            # VAD 配置 & 结果结构体
     │   │       └── SherpaVadComponent.h        # 语音活动检测组件
+    │   │   └── Asr/
+    │   │       ├── SherpaAsrTypes.h            # ASR 配置 & 结果结构体
+    │   │       └── SherpaAsrComponent.h        # 流式语音识别组件
     │   └── Private/
     │       ├── SherpaONNXModule.cpp
     │       ├── SherpaAudioCapture.cpp           # 统一采集实现（单声道+重采样+分发）
@@ -48,11 +56,14 @@ Plugins/SherpaONNX/
     │       │   ├── KwsWorker.h/.cpp              # KWS 后台推理线程
     │       │   ├── KwsWakeWordComponent.cpp
     │       │   └── SherpaKwsLibrary.cpp
-    │       └── Vad/
-    │           ├── SherpaVadWorker.h/.cpp         # VAD 后台推理线程
-    │           └── SherpaVadComponent.cpp
+    │       ├── Vad/
+    │       │   ├── SherpaVadWorker.h/.cpp         # VAD 后台推理线程
+    │       │   └── SherpaVadComponent.cpp
+    │       └── Asr/
+    │           ├── SherpaAsrWorker.h/.cpp         # ASR 后台推理线程
+    │           └── SherpaAsrComponent.cpp
     └── ThirdParty/sherpa-onnx/
-        ├── include/sherpa-onnx/c-api/c-api.h     # C ABI 声明 (KWS + VAD)
+        ├── include/sherpa-onnx/c-api/c-api.h     # C ABI 声明 (KWS + VAD + ASR)
         └── lib/                                   # 预编译库（按平台）
             ├── Win64/
             ├── Linux/
@@ -67,35 +78,34 @@ Plugins/SherpaONNX/
 
 ```
 蓝图层
-┌──────────────────────────────────────────────────────────┐
-│  UKwsWakeWordComponent         USherpaVadComponent        │
-│  ├─ StartKWS(Config)           ├─ StartVAD()             │
-│  ├─ SetKeywords("tk @word")    ├─ IsSpeechDetected()     │
-│  └─ OnKeywordDetected          ├─ OnSpeechStart           │
-│                                ├─ OnSpeechEnd             │
-│                                └─ OnSpeechSegmentReady    │
-└──────────┬───────────────────────┬───────────────────────┘
-           │                       │
-C++ 层     │                       │
-┌──────────┴───────────────────────┴───────────────────────┐
-│                USherpaAudioCapture                        │
-│            (统一采集: mono + 16kHz 重采样)                  │
+┌──────────────────────────────────────────────────────────────────┐
+│  UKwsWakeWordComponent  USherpaVadComponent  USherpaAsrComponent │
+│  ├─ StartKWS(Config)     ├─ StartVAD()        ├─ StartASR()      │
+│  ├─ SetKeywords(...)     ├─ IsSpeechDetected() ├─ SetHotwords()  │
+│  └─ OnKeywordDetected    ├─ OnSpeechStart      ├─ OnPartialResult│
+│                          ├─ OnSpeechEnd        ├─ OnFinalResult  │
+│                          └─ OnSegmentReady     └─ OnAsrError     │
+└─────────────────────────────┬────────────────────────────────────┘
+                              ↓
+                     USherpaAudioCapture
+                   (统一采集: mono + 16kHz)
+                    ↓        ↓         ↓
+┌───────────────────────────────────────────────────────────┐
+│              FKwsWorker   VADWorker  AsrWorker            │
+│             (ONNX KWS)   (ONNX VAD) (ONNX ASR)            │
 │                    ↓          ↓                           │
-│               FKwsWorker    FSherpaVadWorker              │
-│              (ONNX KWS)     (ONNX VAD)                    │
-│                    ↓          ↓                           │
-│  ┌─────────────────┴──────────┴─────────────┐            │
+│  ┌─────────────────┴──────────┴──────────────┐            │
 │  │            FKwsNativeAPI                  │            │
 │  │       (C ABI FFI: KWS + VAD)              │            │
 │  └─────────────────┬─────────────────────────┘            │
 └────────────────────┼──────────────────────────────────────┘
-                     │
-Native 层            │
+                     │（Native 层）
 ┌────────────────────┴──────────────────────┐
 │  sherpa-onnx-c-api.dll/.so                │
 │  └─ onnxruntime.dll/.so                   │
 │       ├─ encoder/decoder/joiner.onnx (KWS)│
-│       └─ silero_vad.int8.onnx (VAD)       │
+│       ├─ silero_vad.int8.onnx (VAD)       │
+│       └─ encoder/decoder/joiner.onnx (ASR)│
 └───────────────────────────────────────────┘
 ```
 
@@ -276,6 +286,123 @@ Event BeginPlay
 
 蓝图层可选联动：
   if VAD.IsSpeechDetected()   → 有人在说话时才处理 KWS 事件
+```
+
+---
+
+## 三、流式语音识别 (ASR)
+
+### 概述
+
+基于 sherpa-onnx Zipformer-transducer 流式 ASR，支持中英双语、纯中文、纯英文实时离线识别。**与 KWS/VAD 共享统一音频采集通道**。
+
+| 预设 | 模型 | 大小 | 语言 |
+|------|------|------|------|
+| `Bilingual_ZhEn_Fp32_2023` | 中英双语 fp32 | 342 MB | 中+英 |
+| `Bilingual_ZhEn_Int8_2023` | 中英双语 int8 | 190 MB | 中+英 |
+| `Chinese_Zh_Int8_2025` | 纯中文 int8 新版 | 122 MB | 中文 |
+| `Chinese_Zh_Fp32_2025` | 纯中文 fp32 新版 | 567 MB | 中文 |
+| `English_En_Fp32_2023` | 纯英文 fp32 | 296 MB | 英文 |
+
+### Blueprint 用法
+
+```
+1. 添加 USherpaAsrComponent
+2. Event BeginPlay:
+     Start ASR (Preset)
+       └─ Preset = "纯中文 | int8 | 2025新版"
+
+3. 绑定 OnPartialResult → 实时中间结果
+4. 绑定 OnFinalResult   → 断句后的完整句子
+```
+
+### Hotwords (热词偏置)
+
+通过 Aho-Corasick 自动机在解码时为特定词汇加权，提高识别准确率：
+
+```
+# Config.Preset 选择模型后自动设置 modeling_unit
+# 在 Details 面板开启 Hotwords:
+bEnableHotwords = true
+HotwordsString = "语音识别\n深度学习\n文森特卡索"    # 一行一词
+HotwordsScore = 1.5                                   # 偏置强度 (默认)
+
+# 运行时动态切换热词:
+SetHotwords("导航\n音乐\n天气")
+```
+
+**Hotwords 格式**：
+- `cjkchar` 模型（中文）：直接写短语，每行一个
+- `bpe` 模型（英文）：大写空格分隔，如 `SPEECH RECOGNITION`
+- `cjkchar+bpe` 模型（中英）：混写，如 `SPEECH 识别`
+
+**每词独立权重**（`:<分数>` 后缀）：
+```
+语音识别 :3.5     ← 高优先级，解码时强偏置
+深度学习           ← 无后缀，使用全局 HotwordsScore (默认 1.5)
+天气 :0.5          ← 低优先级，轻微偏置
+```
+- 分数越高的词，ASR 越"偏爱"它，对发音相近的词纠正效果更好
+- 建议核心热词 2.0-3.5，普通热词不写后缀用默认，不要超过 5 以免"霸占"所有结果
+
+**启用 Hotwords 后自动切换**：`decoding_method` → `modified_beam_search`
+
+### ASR 配置字段
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `Preset` | enum | 中英 fp32 | 模型预设选择 |
+| `EncoderPath` / `DecoderPath` / `JoinerPath` / `TokensPath` | FString | — | 模型文件路径（预设自动填充） |
+| `DecodingMethod` | FString | greedy_search | 解码方法（Hotwords 自动切换） |
+| `MaxActivePaths` | int32 | 4 | 最大活跃路径数 |
+| `bEnableEndpoint` | bool | true | 启用断句检测 |
+| `Rule1MinTrailingSilence` | float | 2.4 | 静音断句阈值 1（秒） |
+| `Rule2MinTrailingSilence` | float | 1.2 | 静音断句阈值 2（秒） |
+| `Rule3MinUtteranceLength` | float | 20.0 | 最长语句时长（秒） |
+| `bEnableHotwords` | bool | false | 启用热词偏置 |
+| `ModelingUnit` | FString | — | cjkchar / bpe / cjkchar+bpe（预设自动填） |
+| `BpeVocab` | FString | — | BPE 词汇文件（预设自动填） |
+| `HotwordsString` | FString | — | 热词文本 |
+| `HotwordsScore` | float | 1.5 | 热词偏置分数 |
+| `NumThreads` | int32 | 1 | 推理线程数 |
+| `Provider` | FString | cpu | 推理后端 |
+
+### ASR C++ API
+
+```cpp
+auto* Asr = MyActor->FindComponentByClass<USherpaAsrComponent>();
+
+Asr->StartASRWithPreset(ESherpaAsrPreset::Chinese_Zh_Int8_2025);
+Asr->OnPartialResult.AddDynamic(this, &AMyActor::OnPartial);
+Asr->OnFinalResult.AddDynamic(this, &AMyActor::OnFinal);
+
+// 运行时热词
+Asr->SetHotwords(TEXT("导航\n音乐\n天气 :3.0"));
+
+Asr->StopASR();
+```
+
+### ASR 事件
+
+| 事件 | 类型 | 触发时机 |
+|------|------|---------|
+| `OnPartialResult` | `FSherpaAsrResult` | 实时中间识别结果 |
+| `OnFinalResult` | `FSherpaAsrResult` | 断句后的完整结果 |
+| `OnAsrError` | `FString` | 发生错误 |
+
+### ASR + KWS + VAD 联动
+
+```
+USherpaAudioCapture (统一 16kHz mono)
+  ├─→ FKwsWorker     → 唤醒词触发
+  ├─→ FSherpaVadWorker → 语音活动检测
+  └─→ FSherpaAsrWorker → 流式语音识别
+
+蓝图联动:
+  KWS.OnKeywordDetected → 若 keyword == "导航"
+    → ASR.SetHotwords("左转\n右转\n直行")  ← 切换导航热词
+  VAD.IsSpeechDetected → true
+    → ASR 识别: "导航到最近的餐厅"          ← 热词偏置 "导航" 更准
 ```
 
 ---

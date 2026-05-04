@@ -32,7 +32,7 @@ FSherpaKwsModelConfig USherpaKwsLibrary::MakeBilingualPresetConfig(
 {
 	FSherpaKwsModelConfig Config;
 
-	const FString Base = GetModelBasePath() + TEXT("sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20/");
+	const FString Base = GetModelBasePath() + TEXT("Kws/zh-en-3M/");
 
 	switch (Preset)
 	{

@@ -33,6 +33,21 @@ using Fn_VadDestroySegment = void (*)(const SherpaOnnxSpeechSegment*);
 using Fn_VadReset          = void (*)(const SherpaOnnxVoiceActivityDetector*);
 using Fn_VadFlush          = void (*)(const SherpaOnnxVoiceActivityDetector*);
 
+// ASR function pointer types
+using Fn_AsrCreate          = const SherpaOnnxOnlineRecognizer* (*)(const SherpaOnnxOnlineRecognizerConfig*);
+using Fn_AsrDestroy         = void (*)(const SherpaOnnxOnlineRecognizer*);
+using Fn_AsrCreateStream    = const SherpaOnnxOnlineStream* (*)(const SherpaOnnxOnlineRecognizer*);
+using Fn_AsrCreateStreamHW = const SherpaOnnxOnlineStream* (*)(const SherpaOnnxOnlineRecognizer*, const char*);
+using Fn_AsrDestroyStream   = void (*)(const SherpaOnnxOnlineStream*);
+using Fn_AsrIsReady         = int32_t (*)(const SherpaOnnxOnlineRecognizer*, const SherpaOnnxOnlineStream*);
+using Fn_AsrDecode          = void (*)(const SherpaOnnxOnlineRecognizer*, const SherpaOnnxOnlineStream*);
+using Fn_AsrGetResult       = const SherpaOnnxOnlineRecognizerResult* (*)(const SherpaOnnxOnlineRecognizer*, const SherpaOnnxOnlineStream*);
+using Fn_AsrDestroyResult   = void (*)(const SherpaOnnxOnlineRecognizerResult*);
+using Fn_AsrGetResultJson   = const char* (*)(const SherpaOnnxOnlineRecognizer*, const SherpaOnnxOnlineStream*);
+using Fn_AsrDestroyResultJson = void (*)(const char*);
+using Fn_AsrReset           = void (*)(const SherpaOnnxOnlineRecognizer*, const SherpaOnnxOnlineStream*);
+using Fn_AsrIsEndpoint      = int32_t (*)(const SherpaOnnxOnlineRecognizer*, const SherpaOnnxOnlineStream*);
+
 struct SHERPAONNX_API FKwsNativeAPI
 {
 	Fn_KwsCreate       CreateKeywordSpotter   = nullptr;
@@ -62,8 +77,24 @@ struct SHERPAONNX_API FKwsNativeAPI
 	Fn_VadReset           VadReset                     = nullptr;
 	Fn_VadFlush           VadFlush                     = nullptr;
 
+	// ASR
+	Fn_AsrCreate           CreateOnlineRecognizer       = nullptr;
+	Fn_AsrDestroy          DestroyOnlineRecognizer      = nullptr;
+	Fn_AsrCreateStream     CreateOnlineStream           = nullptr;
+	Fn_AsrCreateStreamHW   CreateOnlineStreamWithHotwords = nullptr;
+	Fn_AsrDestroyStream    DestroyOnlineStream          = nullptr;
+	Fn_AsrIsReady          IsOnlineStreamReady          = nullptr;
+	Fn_AsrDecode           DecodeOnlineStream           = nullptr;
+	Fn_AsrGetResult        GetOnlineStreamResult        = nullptr;
+	Fn_AsrDestroyResult    DestroyOnlineRecognizerResult = nullptr;
+	Fn_AsrGetResultJson    GetOnlineStreamResultAsJson  = nullptr;
+	Fn_AsrDestroyResultJson DestroyOnlineStreamResultJson = nullptr;
+	Fn_AsrReset            OnlineStreamReset            = nullptr;
+	Fn_AsrIsEndpoint       OnlineStreamIsEndpoint       = nullptr;
+
 	bool IsLoaded() const { return CreateKeywordSpotter != nullptr; }
 	bool IsVadLoaded() const { return CreateVoiceActivityDetector != nullptr; }
+	bool IsAsrLoaded() const { return CreateOnlineRecognizer != nullptr; }
 };
 
 bool SherpaKws_LoadLibrary();
