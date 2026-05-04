@@ -1,38 +1,20 @@
-# Binaries
-Binaries/*
-!Binaries/.gitkeep
+# Large model files (>10MB, downloaded separately — see README for links)
+Content/Models/Asr/**/*.onnx
+Content/Models/Asr/**/*.int8.onnx
+Content/Models/Asr/**/*.model
+Content/Models/Asr/**/*.vocab
+Content/Models/Kws/**/*.onnx
+Content/Models/Kws/**/*.int8.onnx
+Content/Models/Kws/**/*.model
+
+# Keep small text files
+!Content/Models/**/*.txt
+!Content/Models/**/*.phone
+!Content/Models/**/README.md
+
+# Keep VAD model (small, 208KB)
+!Content/Models/Vad/
 
 # Build artifacts
-Intermediate/*
-!Intermediate/.gitkeep
-
-# Third-party libraries (onnxruntime.dll) - kept for plugin compilation and runtime
-# Source/ThirdParty/*/lib/
-
-# Onnx models (large binary files)
-Content/Models/*.onnx
-
-# Python virtual environments
-Tools/**/*.venv/
-Tools/**/*.venv37/
-Tools/PythonVirtualEnv/
-
-# IDE and editor files
-.vs/
-.vscode/
-.idea/
-*.suo
-*.user
-*.userosscache
-*.sln.docstates
-*.rsps
-*.sarif
-
-# Unreal build cache
-DerivedDataCache/
-.rdcache/
-
-# Logs
-*.log
-
-test_wavs
+Binaries/
+Intermediate/

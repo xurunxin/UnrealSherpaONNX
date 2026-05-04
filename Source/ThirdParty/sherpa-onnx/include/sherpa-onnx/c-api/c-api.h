@@ -239,6 +239,94 @@ SherpaOnnxVoiceActivityDetectorReset(const SherpaOnnxVoiceActivityDetector *p);
 SHERPA_ONNX_API void
 SherpaOnnxVoiceActivityDetectorFlush(const SherpaOnnxVoiceActivityDetector *p);
 
+// ============================================================
+// Streaming ASR (Online Recognizer)
+// ============================================================
+
+typedef struct SherpaOnnxOnlineCtcFstDecoderConfig {
+  const char *graph;
+  int32_t max_active;
+} SherpaOnnxOnlineCtcFstDecoderConfig;
+
+typedef struct SherpaOnnxHomophoneReplacerConfig {
+  const char *dict_dir;
+  const char *lexicon;
+  const char *rule_fsts;
+} SherpaOnnxHomophoneReplacerConfig;
+
+typedef struct SherpaOnnxOnlineRecognizerConfig {
+  SherpaOnnxFeatureConfig             feat_config;
+  SherpaOnnxOnlineModelConfig         model_config;
+  const char                         *decoding_method;
+  int32_t                             max_active_paths;
+  int32_t                             enable_endpoint;
+  float                               rule1_min_trailing_silence;
+  float                               rule2_min_trailing_silence;
+  float                               rule3_min_utterance_length;
+  const char                         *hotwords_file;
+  float                               hotwords_score;
+  SherpaOnnxOnlineCtcFstDecoderConfig ctc_fst_decoder_config;
+  const char                         *rule_fsts;
+  const char                         *rule_fars;
+  float                               blank_penalty;
+  const char                         *hotwords_buf;
+  int32_t                             hotwords_buf_size;
+  SherpaOnnxHomophoneReplacerConfig   hr;
+} SherpaOnnxOnlineRecognizerConfig;
+
+typedef struct SherpaOnnxOnlineRecognizerResult {
+  const char      *text;
+  const char      *tokens;
+  const char *const *tokens_arr;
+  float           *timestamps;
+  int32_t          count;
+  const char      *json;
+} SherpaOnnxOnlineRecognizerResult;
+
+typedef struct SherpaOnnxOnlineRecognizer SherpaOnnxOnlineRecognizer;
+
+SHERPA_ONNX_API const SherpaOnnxOnlineRecognizer*
+SherpaOnnxCreateOnlineRecognizer(const SherpaOnnxOnlineRecognizerConfig *config);
+
+SHERPA_ONNX_API void
+SherpaOnnxDestroyOnlineRecognizer(const SherpaOnnxOnlineRecognizer *recognizer);
+
+SHERPA_ONNX_API const SherpaOnnxOnlineStream*
+SherpaOnnxCreateOnlineStream(const SherpaOnnxOnlineRecognizer *recognizer);
+
+SHERPA_ONNX_API void
+SherpaOnnxDestroyOnlineStream(const SherpaOnnxOnlineStream *stream);
+
+SHERPA_ONNX_API int32_t
+SherpaOnnxIsOnlineStreamReady(const SherpaOnnxOnlineRecognizer *recognizer,
+                              const SherpaOnnxOnlineStream *stream);
+
+SHERPA_ONNX_API void
+SherpaOnnxDecodeOnlineStream(const SherpaOnnxOnlineRecognizer *recognizer,
+                             const SherpaOnnxOnlineStream *stream);
+
+SHERPA_ONNX_API const SherpaOnnxOnlineRecognizerResult*
+SherpaOnnxGetOnlineStreamResult(const SherpaOnnxOnlineRecognizer *recognizer,
+                                const SherpaOnnxOnlineStream *stream);
+
+SHERPA_ONNX_API void
+SherpaOnnxDestroyOnlineRecognizerResult(const SherpaOnnxOnlineRecognizerResult *r);
+
+SHERPA_ONNX_API const char*
+SherpaOnnxGetOnlineStreamResultAsJson(const SherpaOnnxOnlineRecognizer *recognizer,
+                                      const SherpaOnnxOnlineStream *stream);
+
+SHERPA_ONNX_API void
+SherpaOnnxDestroyOnlineStreamResultJson(const char *s);
+
+SHERPA_ONNX_API void
+SherpaOnnxOnlineStreamReset(const SherpaOnnxOnlineRecognizer *recognizer,
+                            const SherpaOnnxOnlineStream *stream);
+
+SHERPA_ONNX_API int32_t
+SherpaOnnxOnlineStreamIsEndpoint(const SherpaOnnxOnlineRecognizer *recognizer,
+                                 const SherpaOnnxOnlineStream *stream);
+
 #ifdef __cplusplus
 }
 #endif

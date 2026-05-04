@@ -38,6 +38,20 @@ bool SherpaKws_LoadLibrary()
 	G_API.DestroySpeechSegment           = &SherpaOnnxDestroySpeechSegment;
 	G_API.VadReset                       = &SherpaOnnxVoiceActivityDetectorReset;
 	G_API.VadFlush                       = &SherpaOnnxVoiceActivityDetectorFlush;
+
+	G_API.CreateOnlineRecognizer          = &SherpaOnnxCreateOnlineRecognizer;
+	G_API.DestroyOnlineRecognizer         = &SherpaOnnxDestroyOnlineRecognizer;
+	G_API.CreateOnlineStream              = &SherpaOnnxCreateOnlineStream;
+	G_API.CreateOnlineStreamWithHotwords  = &SherpaOnnxCreateOnlineStreamWithHotwords;
+	G_API.DestroyOnlineStream             = &SherpaOnnxDestroyOnlineStream;
+	G_API.IsOnlineStreamReady             = &SherpaOnnxIsOnlineStreamReady;
+	G_API.DecodeOnlineStream              = &SherpaOnnxDecodeOnlineStream;
+	G_API.GetOnlineStreamResult           = &SherpaOnnxGetOnlineStreamResult;
+	G_API.DestroyOnlineRecognizerResult   = &SherpaOnnxDestroyOnlineRecognizerResult;
+	G_API.GetOnlineStreamResultAsJson     = &SherpaOnnxGetOnlineStreamResultAsJson;
+	G_API.DestroyOnlineStreamResultJson   = &SherpaOnnxDestroyOnlineStreamResultJson;
+	G_API.OnlineStreamReset               = &SherpaOnnxOnlineStreamReset;
+	G_API.OnlineStreamIsEndpoint          = &SherpaOnnxOnlineStreamIsEndpoint;
 	return G_API.IsLoaded();
 }
 
@@ -188,6 +202,20 @@ bool SherpaKws_LoadLibrary()
 	G_API.DestroySpeechSegment            = (Fn_VadDestroySegment) Load(TEXT("SherpaOnnxDestroySpeechSegment"));
 	G_API.VadReset                        = (Fn_VadReset)          Load(TEXT("SherpaOnnxVoiceActivityDetectorReset"));
 	G_API.VadFlush                        = (Fn_VadFlush)          Load(TEXT("SherpaOnnxVoiceActivityDetectorFlush"));
+
+	G_API.CreateOnlineRecognizer          = (Fn_AsrCreate)          Load(TEXT("SherpaOnnxCreateOnlineRecognizer"));
+	G_API.DestroyOnlineRecognizer         = (Fn_AsrDestroy)         Load(TEXT("SherpaOnnxDestroyOnlineRecognizer"));
+	G_API.CreateOnlineStream              = (Fn_AsrCreateStream)    Load(TEXT("SherpaOnnxCreateOnlineStream"));
+	G_API.CreateOnlineStreamWithHotwords  = (Fn_AsrCreateStreamHW)  Load(TEXT("SherpaOnnxCreateOnlineStreamWithHotwords"));
+	G_API.DestroyOnlineStream             = (Fn_AsrDestroyStream)   Load(TEXT("SherpaOnnxDestroyOnlineStream"));
+	G_API.IsOnlineStreamReady             = (Fn_AsrIsReady)         Load(TEXT("SherpaOnnxIsOnlineStreamReady"));
+	G_API.DecodeOnlineStream              = (Fn_AsrDecode)          Load(TEXT("SherpaOnnxDecodeOnlineStream"));
+	G_API.GetOnlineStreamResult           = (Fn_AsrGetResult)       Load(TEXT("SherpaOnnxGetOnlineStreamResult"));
+	G_API.DestroyOnlineRecognizerResult   = (Fn_AsrDestroyResult)   Load(TEXT("SherpaOnnxDestroyOnlineRecognizerResult"));
+	G_API.GetOnlineStreamResultAsJson     = (Fn_AsrGetResultJson)   Load(TEXT("SherpaOnnxGetOnlineStreamResultAsJson"));
+	G_API.DestroyOnlineStreamResultJson   = (Fn_AsrDestroyResultJson) Load(TEXT("SherpaOnnxDestroyOnlineStreamResultJson"));
+	G_API.OnlineStreamReset               = (Fn_AsrReset)           Load(TEXT("SherpaOnnxOnlineStreamReset"));
+	G_API.OnlineStreamIsEndpoint          = (Fn_AsrIsEndpoint)      Load(TEXT("SherpaOnnxOnlineStreamIsEndpoint"));
 
 	if (!G_API.IsLoaded())
 	{
