@@ -425,6 +425,34 @@ SherpaONNX.Debug.Verbose 0   # 关闭
 
 ---
 
+## 模型下载
+
+模型文件因体积超过 GitHub 限制，需单独下载。下载后放入对应目录：
+
+### KWS (关键词唤醒)
+
+```
+curl -L -o kws.tar.bz2 https://github.com/k2-fsa/sherpa-onnx/releases/download/kws-models/sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20.tar.bz2
+tar -xf kws.tar.bz2 -C Content/Models/Kws/zh-en-3M/
+```
+
+### VAD (语音活动检测)
+
+```
+curl -L -o Content/Models/Vad/Silero/silero_vad.int8.onnx https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.int8.onnx
+```
+
+### ASR (流式语音识别)
+
+| 模型 | 命令 |
+|------|------|
+| 中英双语 | `curl -L -o asr.tar.bz2 https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20.tar.bz2 && tar -xf asr.tar.bz2 -C Content/Models/Asr/` |
+| 纯中文 int8 | `curl -L -o asr.tar.bz2 https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30.tar.bz2 && tar -xf asr.tar.bz2 -C Content/Models/Asr/zh-int8/` |
+| 纯中文 fp32 | `curl -L -o asr.tar.bz2 https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-zh-2025-06-30.tar.bz2 && tar -xf asr.tar.bz2 -C Content/Models/Asr/zh-fp32/` |
+| 纯英文 | `curl -L -o asr.tar.bz2 https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-en-2023-06-26.tar.bz2 && tar -xf asr.tar.bz2 -C Content/Models/Asr/en-fp32/` |
+
+---
+
 ## 跨平台部署
 
 ### 编译 Native 库

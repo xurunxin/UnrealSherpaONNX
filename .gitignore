@@ -1,14 +1,19 @@
-# Model files (downloaded separately, see README for links)
-Content/Models/**/*.onnx
-Content/Models/**/*.int8.onnx
-Content/Models/**/*.model
-Content/Models/**/test_wavs/
+# Large model files (>10MB, downloaded separately — see README for links)
+Content/Models/Asr/**/*.onnx
+Content/Models/Asr/**/*.int8.onnx
+Content/Models/Asr/**/*.model
+Content/Models/Asr/**/*.vocab
+Content/Models/Kws/**/*.onnx
+Content/Models/Kws/**/*.int8.onnx
+Content/Models/Kws/**/*.model
 
-# Keep text files
+# Keep small text files
 !Content/Models/**/*.txt
-!Content/Models/**/*.vocab
 !Content/Models/**/*.phone
 !Content/Models/**/README.md
+
+# Keep VAD model (small, 208KB)
+!Content/Models/Vad/
 
 # Build artifacts
 Binaries/
