@@ -121,12 +121,16 @@ public class SherpaONNX : ModuleRules
 				"  See: https://github.com/k2-fsa/sherpa-onnx for build instructions.");
 		}
 
-		// ---- Stage model files as NonUFS so ONNX Runtime can fopen() them ----
-		string PluginContent = Path.Combine(PluginDirectory, "Content");
-		string ModelsDir     = Path.Combine(PluginContent, "Models");
+		// ---- Stage model files in place as NonUFS so ONNX Runtime can fopen() them ----
+		string PluginModelsDir = Path.Combine(PluginDirectory, "Content", "Models");
+		StageModelFiles(PluginModelsDir);
 
-		// 仅打包 .onnx 模型 + tokens.txt，排除 test_wavs 等多余文件
-		StageModelFiles(ModelsDir);
+		// BuildPlugin uses a temporary HostProject; an absent project model root is valid.
+		if (Target.ProjectFile != null)
+		{
+			string ProjectModelsDir = Path.Combine(Target.ProjectFile.Directory.FullName, "Content", "Models");
+			StageModelFiles(ProjectModelsDir);
+		}
 	}
 
 	private void StageModelFiles(string ModelsDir)
@@ -135,18 +139,18 @@ public class SherpaONNX : ModuleRules
 
 		foreach (string FilePath in Directory.GetFiles(ModelsDir, "*", SearchOption.AllDirectories))
 		{
-			string Ext = Path.GetExtension(FilePath).ToLower();
-			string Name = Path.GetFileName(FilePath).ToLower();
+			string Ext = Path.GetExtension(FilePath).ToLowerInvariant();
+			string Name = Path.GetFileName(FilePath).ToLowerInvariant();
 
-			// 只打包模型推理所需的文件
-			if (Ext != ".onnx" && Name != "tokens.txt" && Name != "keywords.txt" && Ext != ".phone")
+			// Stage only files consumed by the native model loaders.
+			if (Ext != ".onnx" && Ext != ".model" && Ext != ".vocab" &&
+				Ext != ".phone" && Name != "tokens.txt" && Name != "keywords.txt")
+			{
 				continue;
+			}
 
-			// 目标路径: 项目目录/Content/Models/<相对路径>
-			string RelativePath = Path.GetRelativePath(ModelsDir, FilePath);
-			string DestPath = Path.Combine("$(ProjectDir)", "Content", "Models", RelativePath);
-
-			RuntimeDependencies.Add(DestPath, FilePath, StagedFileType.NonUFS);
+			// Files already live under $(PluginDir) or $(ProjectDir); stage them in place.
+			RuntimeDependencies.Add(FilePath, StagedFileType.NonUFS);
 		}
 	}
 }

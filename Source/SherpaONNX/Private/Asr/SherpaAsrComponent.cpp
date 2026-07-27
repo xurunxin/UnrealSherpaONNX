@@ -1,64 +1,112 @@
 #include "Asr/SherpaAsrComponent.h"
 
 #if WITH_SHERPA_ONNX
+#include "Model/SherpaModelPathResolver.h"
 #include "SherpaAsrWorker.h"
 #include "SherpaAudioCapture.h"
 #endif
 
-#include "Interfaces/IPluginManager.h"
 #include "Misc/Paths.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSherpaAsrComponent, Log, All);
 
-static void ResolvePresetPaths(ESherpaAsrPreset Preset, FSherpaAsrConfig& OutConfig)
+static bool ResolvePresetPaths(ESherpaAsrPreset Preset, FSherpaAsrConfig& OutConfig, FString& OutError)
 {
-	TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("SherpaONNX"));
-	if (!Plugin.IsValid()) return;
-
-	const FString Root = Plugin->GetContentDir() / TEXT("Models/Asr/");
+	FString EncoderRelativePath;
+	FString DecoderRelativePath;
+	FString JoinerRelativePath;
+	FString TokensRelativePath;
+	FString DefaultBpeRelativePath;
+	FString ModelingUnit;
 
 	switch (Preset)
 	{
 	case ESherpaAsrPreset::Bilingual_ZhEn_Fp32_2023:
-		OutConfig.EncoderPath = Root / TEXT("sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/encoder-epoch-99-avg-1.onnx");
-		OutConfig.DecoderPath = Root / TEXT("sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/decoder-epoch-99-avg-1.onnx");
-		OutConfig.JoinerPath  = Root / TEXT("sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/joiner-epoch-99-avg-1.onnx");
-		OutConfig.TokensPath  = Root / TEXT("sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/tokens.txt");
-		OutConfig.ModelingUnit = TEXT("cjkchar+bpe");
-		if (OutConfig.BpeVocab.IsEmpty()) OutConfig.BpeVocab = Root / TEXT("sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/bpe.model");
+		EncoderRelativePath = TEXT("Asr/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/encoder-epoch-99-avg-1.onnx");
+		DecoderRelativePath = TEXT("Asr/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/decoder-epoch-99-avg-1.onnx");
+		JoinerRelativePath = TEXT("Asr/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/joiner-epoch-99-avg-1.onnx");
+		TokensRelativePath = TEXT("Asr/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/tokens.txt");
+		DefaultBpeRelativePath = TEXT("Asr/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/bpe.model");
+		ModelingUnit = TEXT("cjkchar+bpe");
 		break;
 	case ESherpaAsrPreset::Bilingual_ZhEn_Int8_2023:
-		OutConfig.EncoderPath = Root / TEXT("sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/encoder-epoch-99-avg-1.int8.onnx");
-		OutConfig.DecoderPath = Root / TEXT("sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/decoder-epoch-99-avg-1.int8.onnx");
-		OutConfig.JoinerPath  = Root / TEXT("sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/joiner-epoch-99-avg-1.int8.onnx");
-		OutConfig.TokensPath  = Root / TEXT("sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/tokens.txt");
-		OutConfig.ModelingUnit = TEXT("cjkchar+bpe");
-		if (OutConfig.BpeVocab.IsEmpty()) OutConfig.BpeVocab = Root / TEXT("sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/bpe.model");
+		EncoderRelativePath = TEXT("Asr/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/encoder-epoch-99-avg-1.int8.onnx");
+		DecoderRelativePath = TEXT("Asr/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/decoder-epoch-99-avg-1.int8.onnx");
+		JoinerRelativePath = TEXT("Asr/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/joiner-epoch-99-avg-1.int8.onnx");
+		TokensRelativePath = TEXT("Asr/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/tokens.txt");
+		DefaultBpeRelativePath = TEXT("Asr/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/bpe.model");
+		ModelingUnit = TEXT("cjkchar+bpe");
 		break;
 	case ESherpaAsrPreset::Chinese_Zh_Int8_2025:
-		OutConfig.EncoderPath = Root / TEXT("zh-int8/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/encoder.int8.onnx");
-		OutConfig.DecoderPath = Root / TEXT("zh-int8/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/decoder.onnx");
-		OutConfig.JoinerPath  = Root / TEXT("zh-int8/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/joiner.int8.onnx");
-		OutConfig.TokensPath  = Root / TEXT("zh-int8/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/tokens.txt");
-		OutConfig.ModelingUnit = TEXT("cjkchar");
+		EncoderRelativePath = TEXT("Asr/zh-int8/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/encoder.int8.onnx");
+		DecoderRelativePath = TEXT("Asr/zh-int8/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/decoder.onnx");
+		JoinerRelativePath = TEXT("Asr/zh-int8/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/joiner.int8.onnx");
+		TokensRelativePath = TEXT("Asr/zh-int8/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/tokens.txt");
+		ModelingUnit = TEXT("cjkchar");
 		break;
 	case ESherpaAsrPreset::Chinese_Zh_Fp32_2025:
-		OutConfig.EncoderPath = Root / TEXT("zh-fp32/sherpa-onnx-streaming-zipformer-zh-2025-06-30/encoder.onnx");
-		OutConfig.DecoderPath = Root / TEXT("zh-fp32/sherpa-onnx-streaming-zipformer-zh-2025-06-30/decoder.onnx");
-		OutConfig.JoinerPath  = Root / TEXT("zh-fp32/sherpa-onnx-streaming-zipformer-zh-2025-06-30/joiner.onnx");
-		OutConfig.TokensPath  = Root / TEXT("zh-fp32/sherpa-onnx-streaming-zipformer-zh-2025-06-30/tokens.txt");
-		OutConfig.ModelingUnit = TEXT("cjkchar");
+		EncoderRelativePath = TEXT("Asr/zh-fp32/sherpa-onnx-streaming-zipformer-zh-2025-06-30/encoder.onnx");
+		DecoderRelativePath = TEXT("Asr/zh-fp32/sherpa-onnx-streaming-zipformer-zh-2025-06-30/decoder.onnx");
+		JoinerRelativePath = TEXT("Asr/zh-fp32/sherpa-onnx-streaming-zipformer-zh-2025-06-30/joiner.onnx");
+		TokensRelativePath = TEXT("Asr/zh-fp32/sherpa-onnx-streaming-zipformer-zh-2025-06-30/tokens.txt");
+		ModelingUnit = TEXT("cjkchar");
 		break;
 	case ESherpaAsrPreset::English_En_Fp32_2023:
-		OutConfig.EncoderPath = Root / TEXT("en-fp32/sherpa-onnx-streaming-zipformer-en-2023-06-26/encoder-epoch-99-avg-1-chunk-16-left-128.onnx");
-		OutConfig.DecoderPath = Root / TEXT("en-fp32/sherpa-onnx-streaming-zipformer-en-2023-06-26/decoder-epoch-99-avg-1-chunk-16-left-128.onnx");
-		OutConfig.JoinerPath  = Root / TEXT("en-fp32/sherpa-onnx-streaming-zipformer-en-2023-06-26/joiner-epoch-99-avg-1-chunk-16-left-128.onnx");
-		OutConfig.TokensPath  = Root / TEXT("en-fp32/sherpa-onnx-streaming-zipformer-en-2023-06-26/tokens.txt");
-		OutConfig.ModelingUnit = TEXT("bpe");
-		if (OutConfig.BpeVocab.IsEmpty()) OutConfig.BpeVocab = Root / TEXT("en-fp32/sherpa-onnx-streaming-zipformer-en-2023-06-26/bpe.model");
+		EncoderRelativePath = TEXT("Asr/en-fp32/sherpa-onnx-streaming-zipformer-en-2023-06-26/encoder-epoch-99-avg-1-chunk-16-left-128.onnx");
+		DecoderRelativePath = TEXT("Asr/en-fp32/sherpa-onnx-streaming-zipformer-en-2023-06-26/decoder-epoch-99-avg-1-chunk-16-left-128.onnx");
+		JoinerRelativePath = TEXT("Asr/en-fp32/sherpa-onnx-streaming-zipformer-en-2023-06-26/joiner-epoch-99-avg-1-chunk-16-left-128.onnx");
+		TokensRelativePath = TEXT("Asr/en-fp32/sherpa-onnx-streaming-zipformer-en-2023-06-26/tokens.txt");
+		DefaultBpeRelativePath = TEXT("Asr/en-fp32/sherpa-onnx-streaming-zipformer-en-2023-06-26/bpe.model");
+		ModelingUnit = TEXT("bpe");
 		break;
-	default: break;
+	default:
+		OutError = TEXT("Custom ASR paths must be supplied explicitly.");
+		return false;
 	}
+
+	TArray<FString> RequiredRelativePaths = {
+		EncoderRelativePath,
+		DecoderRelativePath,
+		JoinerRelativePath,
+		TokensRelativePath
+	};
+	const bool bBpePreset = !DefaultBpeRelativePath.IsEmpty();
+	const bool bUseDefaultBpe = bBpePreset && OutConfig.BpeVocab.IsEmpty();
+	if (bUseDefaultBpe)
+	{
+		RequiredRelativePaths.Add(DefaultBpeRelativePath);
+	}
+
+	const SherpaModelPathResolver::FModelPathResolution Resolution =
+		SherpaModelPathResolver::ResolveDefaultModelSet(RequiredRelativePaths);
+	if (!Resolution.bSuccess)
+	{
+		OutError = Resolution.ErrorMessage;
+		return false;
+	}
+
+	OutConfig.EncoderPath = Resolution.Paths[0];
+	OutConfig.DecoderPath = Resolution.Paths[1];
+	OutConfig.JoinerPath = Resolution.Paths[2];
+	OutConfig.TokensPath = Resolution.Paths[3];
+	OutConfig.ModelingUnit = ModelingUnit;
+	if (bUseDefaultBpe)
+	{
+		OutConfig.BpeVocab = Resolution.Paths[4];
+	}
+	else if (!bBpePreset)
+	{
+		OutConfig.BpeVocab.Reset();
+	}
+	UE_LOG(LogSherpaAsrComponent, Log,
+		TEXT("ASR preset model root selected: %s (encoder=%s, decoder=%s, joiner=%s, tokens=%s, bpe=%s)"),
+		*Resolution.Root,
+		*OutConfig.EncoderPath,
+		*OutConfig.DecoderPath,
+		*OutConfig.JoinerPath,
+		*OutConfig.TokensPath,
+		*OutConfig.BpeVocab);
+	return true;
 }
 
 USherpaAsrComponent::USherpaAsrComponent()
@@ -82,12 +130,19 @@ bool USherpaAsrComponent::StartASR()
 #if !WITH_SHERPA_ONNX
 	return false;
 #else
-	// 从 Details 面板的 Config.Preset 解析路径
-	if (Config.Preset != ESherpaAsrPreset::Custom)
+	FSherpaAsrConfig ResolvedConfig = Config;
+	// 从 Details 面板的 Config.Preset 解析本次启动路径，不回写可编辑配置。
+	if (ResolvedConfig.Preset != ESherpaAsrPreset::Custom)
 	{
-		ResolvePresetPaths(Config.Preset, Config);
+		FString ResolutionError;
+		if (!ResolvePresetPaths(ResolvedConfig.Preset, ResolvedConfig, ResolutionError))
+		{
+			UE_LOG(LogSherpaAsrComponent, Error, TEXT("%s"), *ResolutionError);
+			OnAsrError.Broadcast(ResolutionError);
+			return false;
+		}
 	}
-	return StartASRInternal(Config);
+	return StartASRInternal(ResolvedConfig);
 #endif
 }
 
@@ -106,7 +161,13 @@ bool USherpaAsrComponent::StartASRWithPreset(ESherpaAsrPreset Preset, bool bEnab
 
 	if (Preset != ESherpaAsrPreset::Custom)
 	{
-		ResolvePresetPaths(Preset, ResolvedConfig);
+		FString ResolutionError;
+		if (!ResolvePresetPaths(Preset, ResolvedConfig, ResolutionError))
+		{
+			UE_LOG(LogSherpaAsrComponent, Error, TEXT("%s"), *ResolutionError);
+			OnAsrError.Broadcast(ResolutionError);
+			return false;
+		}
 	}
 	return StartASRInternal(ResolvedConfig);
 #endif
@@ -122,6 +183,60 @@ bool USherpaAsrComponent::StartASRInternal(const FSherpaAsrConfig& ResolvedConfi
 		OnAsrError.Broadcast(TEXT("ASR model paths are incomplete."));
 		return false;
 	}
+
+	TArray<FString> MissingModelPaths;
+	auto CheckModelFile = [&MissingModelPaths](const FString& Path)
+	{
+		if (Path.IsEmpty())
+		{
+			return;
+		}
+		FString AbsolutePath = FPaths::ConvertRelativePathToFull(Path);
+		FPaths::NormalizeFilename(AbsolutePath);
+		if (!FPaths::FileExists(AbsolutePath))
+		{
+			MissingModelPaths.Add(AbsolutePath);
+		}
+	};
+	CheckModelFile(ResolvedConfig.EncoderPath);
+	CheckModelFile(ResolvedConfig.DecoderPath);
+	CheckModelFile(ResolvedConfig.JoinerPath);
+	CheckModelFile(ResolvedConfig.TokensPath);
+	CheckModelFile(ResolvedConfig.BpeVocab);
+	if (!MissingModelPaths.IsEmpty())
+	{
+		FString Error = TEXT("ASR model files not found:");
+		for (const FString& MissingPath : MissingModelPaths)
+		{
+			Error += FString::Printf(TEXT("\n  - %s"), *MissingPath);
+		}
+		UE_LOG(LogSherpaAsrComponent, Error, TEXT("%s"), *Error);
+		OnAsrError.Broadcast(Error);
+		return false;
+	}
+
+	auto NormalizeFinalPath = [](const FString& Path)
+	{
+		if (Path.IsEmpty())
+		{
+			return FString();
+		}
+		FString AbsolutePath = FPaths::ConvertRelativePathToFull(Path);
+		FPaths::NormalizeFilename(AbsolutePath);
+		return AbsolutePath;
+	};
+	const FString FinalEncoderPath = NormalizeFinalPath(ResolvedConfig.EncoderPath);
+	const FString FinalDecoderPath = NormalizeFinalPath(ResolvedConfig.DecoderPath);
+	const FString FinalJoinerPath = NormalizeFinalPath(ResolvedConfig.JoinerPath);
+	const FString FinalTokensPath = NormalizeFinalPath(ResolvedConfig.TokensPath);
+	const FString FinalBpePath = NormalizeFinalPath(ResolvedConfig.BpeVocab);
+	UE_LOG(LogSherpaAsrComponent, Log,
+		TEXT("ASR final model paths: encoder=%s, decoder=%s, joiner=%s, tokens=%s, bpe=%s"),
+		*FinalEncoderPath,
+		*FinalDecoderPath,
+		*FinalJoinerPath,
+		*FinalTokensPath,
+		*FinalBpePath);
 
 	Worker = new FSherpaAsrWorker(ResolvedConfig);
 	Worker->OnPartialResult = [this](const FSherpaAsrResult& R) { OnPartialResult.Broadcast(R); };
