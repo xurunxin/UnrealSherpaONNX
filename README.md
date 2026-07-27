@@ -22,13 +22,14 @@ Plugins/SherpaONNX/
 ├── README.md
 ├── Content/
 │   └── Models/
-│       ├── Kws/zh-en-3M/                        # KWS 中英双语模型
+│       ├── keywords.txt                            # KWS 默认关键词（未传字符串时必需）
+│       ├── Kws/zh-en-3M/                          # encoder/decoder/joiner + tokens.txt
 │       ├── Vad/Silero/silero_vad.int8.onnx       # VAD 模型 (208KB)
 │       └── Asr/                                   # ASR 模型目录
-│           ├── sherpa-onnx-...bilingual-zh-en.../  # 中英双语 (342MB)
-│           ├── zh-int8/sherpa-onnx-...zh-int8.../  # 纯中文 int8 (122MB)
-│           ├── zh-fp32/sherpa-onnx-...zh.../       # 纯中文 fp32 (567MB)
-│           └── en-fp32/sherpa-onnx-...en.../       # 纯英文 (296MB)
+│           ├── sherpa-onnx-...bilingual-zh-en.../  # ONNX + tokens.txt + bpe.model
+│           ├── zh-int8/sherpa-onnx-...zh-int8.../  # ONNX + tokens.txt
+│           ├── zh-fp32/sherpa-onnx-...zh.../       # ONNX + tokens.txt
+│           └── en-fp32/sherpa-onnx-...en.../       # ONNX + tokens.txt + bpe.model
 ├── Resources/
 └── Source/
     ├── SherpaONNX/
@@ -217,7 +218,7 @@ MyComponent->StopKWS();
 
 ```
 1. 在任意 Actor 上添加 USherpaVadComponent
-2. 在 Details 面板设置 Config.ModelPath = "…/silero_vad.int8.onnx"
+2. 默认自动解析 Silero 模型；仅需覆盖默认值时才设置 `Config.ModelPath`
 3. Event BeginPlay → StartVAD()    ← 自动开麦采集（无需手动 PushAudioFloat）
 
 4. 绑定事件：
@@ -427,7 +428,13 @@ SherpaONNX.Debug.Verbose 0   # 关闭
 
 ## 模型下载
 
-模型文件因体积超过 GitHub 限制，需单独下载。下载后放入对应目录：
+模型文件因体积超过 GitHub 限制，需单独下载。以下命令默认在插件根目录 `Plugins/SherpaONNX/` 执行，源码/插件分发所带的默认模型放在 `Content/Models/`。
+
+项目可以在 `<ProjectDir>/Content/Models/` 放置同相对路径的覆盖模型。默认预设先检查项目根，再检查插件根；只有某一根包含该预设的**完整必需文件集**时才会选中它，绝不会跨根混拼。项目集合不完整而插件集合完整时会整体回退插件；两边都不完整时会在调用 native create 前失败，并列出缺失文件的绝对路径。
+
+自定义路径语义按入口区分：ASR 的 `Custom` preset 和 VAD 的非空 `ModelPath` 直接使用调用方路径，不参与默认根选择。KWS `MakeCustomConfig` 的绝对 `ModelDir` 直接组合四个核心文件且不加默认根；相对 `ModelDir` 则仍按“项目完整集优先、插件完整集回退”解析，失败时四个核心路径保持为空。显式 `KeywordsFile` 始终原样保留。KWS 传入有效的非空 `KeywordsString` 时不要求 `keywords.txt`；默认关键词文件模式则要求它。`Chinese_Fp32_320ms` 为兼容旧布局继续使用 `Kws/zh-en-3M/tokens.txt`，但中文模型与该 tokens 文件仍必须来自同一个 Models 根。BPE ASR preset 的默认完整集合包含 `bpe.model`。
+
+> 迁移提示：旧版本可能已把模型复制到项目 `Content/Models`。只要该目录仍构成某个 preset 的完整集合，它就会按设计作为覆盖层优先于插件模型；若不再需要覆盖，请删除或移走这份完整残留，避免陈旧项目模型掩盖更新后的插件模型。
 
 ### KWS (关键词唤醒)
 
@@ -485,9 +492,10 @@ export ANDROID_NDK=/path/to/ndk
 
 ### 打包
 
-- 模型文件作为 NonUFS 文件打包到 `<PackageDir>/<ProjectName>/Content/Models/`
-- 运行时通过 `FPaths::ProjectDir()` 定位
-- Android 需声明 `RECORD_AUDIO` 权限（已配置）
+- Build.cs 将插件 `Content/Models` 原位 stage 到 `$(PluginDir)/Content/Models`，将真实消费项目中存在的 `Content/Models` 原位 stage 到 `$(ProjectDir)/Content/Models`；两棵目录独立作为 NonUFS，不复制或覆盖彼此。
+- stage 的原生必需扩展包括 `.onnx`、`.model`、`.vocab`、`.phone`，以及 `tokens.txt`、`keywords.txt`；`BuildPlugin` 的临时 HostProject 没有项目模型时不会失败。
+- 打包后应同时核对 staged 目录：插件模型位于 `<PackageDir>/<ProjectName>/Plugins/SherpaONNX/Content/Models/`，项目覆盖模型（若提供）位于 `<PackageDir>/<ProjectName>/Content/Models/`；确认所用 preset 的完整集合及 `bpe.model` 等 NonUFS 文件实际存在。
+- Android 需声明 `RECORD_AUDIO` 权限（已配置）。
 
 ---
 

@@ -1,11 +1,11 @@
 #include "Vad/SherpaVadComponent.h"
 
 #if WITH_SHERPA_ONNX
+#include "Model/SherpaModelPathResolver.h"
 #include "SherpaVadWorker.h"
 #include "SherpaAudioCapture.h"
 #endif
 
-#include "Interfaces/IPluginManager.h"
 #include "Misc/Paths.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSherpaVadComponent, Log, All);
@@ -38,33 +38,43 @@ bool USherpaVadComponent::StartVAD()
 #else
 	StopVAD();
 
-	// 自动解析默认模型路径（对齐 KWS 预设模式）
-	if (Config.ModelPath.IsEmpty())
+	FSherpaVadConfig ResolvedConfig = Config;
+	// 仅空路径使用默认双根解析；显式自定义路径保持原样。
+	if (ResolvedConfig.ModelPath.IsEmpty())
 	{
-		TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("SherpaONNX"));
-		if (Plugin.IsValid())
+		const SherpaModelPathResolver::FModelPathResolution Resolution =
+			SherpaModelPathResolver::ResolveDefaultModelSet({
+				TEXT("Vad/Silero/silero_vad.int8.onnx")
+			});
+		if (!Resolution.bSuccess)
 		{
-			FString DefaultPath = Plugin->GetContentDir() / TEXT("Models/Vad/Silero/silero_vad.int8.onnx");
-			if (FPaths::FileExists(DefaultPath))
-			{
-				Config.ModelPath = DefaultPath;
-			}
+			UE_LOG(LogSherpaVadComponent, Error, TEXT("%s"), *Resolution.ErrorMessage);
+			OnVadError.Broadcast(Resolution.ErrorMessage);
+			return false;
 		}
+		ResolvedConfig.ModelPath = Resolution.Paths[0];
+		UE_LOG(LogSherpaVadComponent, Log, TEXT("VAD default model root selected: %s"), *Resolution.Root);
 	}
 
-	if (Config.ModelPath.IsEmpty())
+	if (ResolvedConfig.ModelPath.IsEmpty())
 	{
 		OnVadError.Broadcast(TEXT("VAD model path is empty."));
 		return false;
 	}
 
-	if (!FPaths::FileExists(Config.ModelPath))
+	FString AbsoluteModelPath = FPaths::ConvertRelativePathToFull(ResolvedConfig.ModelPath);
+	FPaths::NormalizeFilename(AbsoluteModelPath);
+	if (!FPaths::FileExists(AbsoluteModelPath))
 	{
-		OnVadError.Broadcast(FString::Printf(TEXT("VAD model not found: %s"), *Config.ModelPath));
+		const FString Error = FString::Printf(TEXT("VAD model not found: %s"), *AbsoluteModelPath);
+		UE_LOG(LogSherpaVadComponent, Error, TEXT("%s"), *Error);
+		OnVadError.Broadcast(Error);
 		return false;
 	}
+	ResolvedConfig.ModelPath = AbsoluteModelPath;
+	UE_LOG(LogSherpaVadComponent, Log, TEXT("VAD final model path: %s"), *ResolvedConfig.ModelPath);
 
-	Worker = new FSherpaVadWorker(Config);
+	Worker = new FSherpaVadWorker(ResolvedConfig);
 	Worker->OnSpeechStart  = [this]() { OnSpeechStart.Broadcast(); };
 	Worker->OnSpeechEnd    = [this]() { OnSpeechEnd.Broadcast(); };
 	Worker->OnSegmentReady = [this](const FSherpaVadSegment& Seg) { OnSpeechSegmentReady.Broadcast(Seg); };

@@ -92,9 +92,54 @@ struct SHERPAONNX_API FKwsNativeAPI
 	Fn_AsrReset            OnlineStreamReset            = nullptr;
 	Fn_AsrIsEndpoint       OnlineStreamIsEndpoint       = nullptr;
 
-	bool IsLoaded() const { return CreateKeywordSpotter != nullptr; }
-	bool IsVadLoaded() const { return CreateVoiceActivityDetector != nullptr; }
-	bool IsAsrLoaded() const { return CreateOnlineRecognizer != nullptr; }
+	bool IsLoaded() const
+	{
+		return CreateKeywordSpotter
+			&& DestroyKeywordSpotter
+			&& CreateKeywordStream
+			&& CreateKeywordStreamWithKeywords
+			&& AcceptWaveform
+			&& InputFinished
+			&& IsReady
+			&& Decode
+			&& Reset
+			&& GetResult
+			&& DestroyResult
+			&& GetResultJson
+			&& FreeResultJson;
+	}
+
+	bool IsVadLoaded() const
+	{
+		return CreateVoiceActivityDetector
+			&& DestroyVoiceActivityDetector
+			&& VadAcceptWaveform
+			&& VadEmpty
+			&& VadDetected
+			&& VadPop
+			&& VadClear
+			&& VadFront
+			&& DestroySpeechSegment
+			&& VadReset
+			&& VadFlush;
+	}
+
+	bool IsAsrLoaded() const
+	{
+		return CreateOnlineRecognizer
+			&& DestroyOnlineRecognizer
+			&& CreateOnlineStream
+			&& CreateOnlineStreamWithHotwords
+			&& DestroyOnlineStream
+			&& IsOnlineStreamReady
+			&& DecodeOnlineStream
+			&& GetOnlineStreamResult
+			&& DestroyOnlineRecognizerResult
+			&& GetOnlineStreamResultAsJson
+			&& DestroyOnlineStreamResultJson
+			&& OnlineStreamReset
+			&& OnlineStreamIsEndpoint;
+	}
 };
 
 bool SherpaKws_LoadLibrary();

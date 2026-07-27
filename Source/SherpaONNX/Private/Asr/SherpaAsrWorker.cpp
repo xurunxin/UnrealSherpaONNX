@@ -30,6 +30,37 @@ bool FSherpaAsrWorker::InitAsr()
 		return false;
 	}
 
+	TArray<FString> MissingModelPaths;
+	auto CheckModelFile = [&MissingModelPaths](const FString& Path)
+	{
+		if (Path.IsEmpty())
+		{
+			return;
+		}
+		FString AbsolutePath = FPaths::ConvertRelativePathToFull(Path);
+		FPaths::NormalizeFilename(AbsolutePath);
+		if (!FPaths::FileExists(AbsolutePath))
+		{
+			MissingModelPaths.Add(AbsolutePath);
+		}
+	};
+	CheckModelFile(Config.EncoderPath);
+	CheckModelFile(Config.DecoderPath);
+	CheckModelFile(Config.JoinerPath);
+	CheckModelFile(Config.TokensPath);
+	CheckModelFile(Config.BpeVocab);
+	if (!MissingModelPaths.IsEmpty())
+	{
+		FString Error = TEXT("ASR model files not found:");
+		for (const FString& MissingPath : MissingModelPaths)
+		{
+			Error += FString::Printf(TEXT("\n  - %s"), *MissingPath);
+		}
+		UE_LOG(LogSherpaAsrWorker, Error, TEXT("%s"), *Error);
+		EmitError(Error);
+		return false;
+	}
+
 	auto& API = SherpaKws_GetAPI();
 	if (!API.IsAsrLoaded())
 	{

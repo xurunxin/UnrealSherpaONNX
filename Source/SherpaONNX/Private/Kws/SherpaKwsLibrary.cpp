@@ -1,23 +1,6 @@
 #include "Kws/SherpaKwsLibrary.h"
+#include "Model/SherpaModelPathResolver.h"
 #include "Misc/Paths.h"
-#include "Interfaces/IPluginManager.h"
-
-static FString GetModelBasePath()
-{
-	// 编辑器：用插件 Content 目录（原地读取）
-	// 打包运行：NonUFS 文件安装到 ProjectDir/Content/Models/
-	TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("SherpaONNX"));
-	if (Plugin.IsValid())
-	{
-		FString EditorPath = Plugin->GetContentDir() / TEXT("Models/");
-		if (FPaths::DirectoryExists(EditorPath))
-		{
-			return EditorPath;
-		}
-	}
-	// 兜底：打包后的 NonUFS 路径
-	return FPaths::ProjectDir() / TEXT("Content/Models/");
-}
 
 static bool LooksLikeMojibake(const FString& Text)
 {
@@ -32,64 +15,96 @@ FSherpaKwsModelConfig USherpaKwsLibrary::MakeBilingualPresetConfig(
 {
 	FSherpaKwsModelConfig Config;
 
-	const FString Base = GetModelBasePath() + TEXT("Kws/zh-en-3M/");
+	FString ModelDirectory = TEXT("Kws/zh-en-3M");
+	FString TokensRelativePath = TEXT("Kws/zh-en-3M/tokens.txt");
+	FString EncoderName;
+	FString DecoderName;
+	FString JoinerName;
 
 	switch (Preset)
 	{
 	case ESherpaKwsPreset::Bilingual_Fp32_320ms:
-		Config.EncoderPath = Base + TEXT("encoder-epoch-13-avg-2-chunk-16-left-64.onnx");
-		Config.DecoderPath = Base + TEXT("decoder-epoch-13-avg-2-chunk-16-left-64.onnx");
-		Config.JoinerPath  = Base + TEXT("joiner-epoch-13-avg-2-chunk-16-left-64.onnx");
+		EncoderName = TEXT("encoder-epoch-13-avg-2-chunk-16-left-64.onnx");
+		DecoderName = TEXT("decoder-epoch-13-avg-2-chunk-16-left-64.onnx");
+		JoinerName = TEXT("joiner-epoch-13-avg-2-chunk-16-left-64.onnx");
 		break;
 	case ESherpaKwsPreset::Bilingual_Int8_320ms:
-		Config.EncoderPath = Base + TEXT("encoder-epoch-13-avg-2-chunk-16-left-64.int8.onnx");
-		Config.DecoderPath = Base + TEXT("decoder-epoch-13-avg-2-chunk-16-left-64.onnx");
-		Config.JoinerPath  = Base + TEXT("joiner-epoch-13-avg-2-chunk-16-left-64.int8.onnx");
+		EncoderName = TEXT("encoder-epoch-13-avg-2-chunk-16-left-64.int8.onnx");
+		DecoderName = TEXT("decoder-epoch-13-avg-2-chunk-16-left-64.onnx");
+		JoinerName = TEXT("joiner-epoch-13-avg-2-chunk-16-left-64.int8.onnx");
 		break;
 	case ESherpaKwsPreset::Bilingual_Fp32_160ms:
-		Config.EncoderPath = Base + TEXT("encoder-epoch-13-avg-2-chunk-8-left-64.onnx");
-		Config.DecoderPath = Base + TEXT("decoder-epoch-13-avg-2-chunk-8-left-64.onnx");
-		Config.JoinerPath  = Base + TEXT("joiner-epoch-13-avg-2-chunk-8-left-64.onnx");
+		EncoderName = TEXT("encoder-epoch-13-avg-2-chunk-8-left-64.onnx");
+		DecoderName = TEXT("decoder-epoch-13-avg-2-chunk-8-left-64.onnx");
+		JoinerName = TEXT("joiner-epoch-13-avg-2-chunk-8-left-64.onnx");
 		break;
 	case ESherpaKwsPreset::Bilingual_Int8_160ms:
-		Config.EncoderPath = Base + TEXT("encoder-epoch-13-avg-2-chunk-8-left-64.int8.onnx");
-		Config.DecoderPath = Base + TEXT("decoder-epoch-13-avg-2-chunk-8-left-64.onnx");
-		Config.JoinerPath  = Base + TEXT("joiner-epoch-13-avg-2-chunk-8-left-64.int8.onnx");
+		EncoderName = TEXT("encoder-epoch-13-avg-2-chunk-8-left-64.int8.onnx");
+		DecoderName = TEXT("decoder-epoch-13-avg-2-chunk-8-left-64.onnx");
+		JoinerName = TEXT("joiner-epoch-13-avg-2-chunk-8-left-64.int8.onnx");
 		break;
 	case ESherpaKwsPreset::Chinese_Fp32_320ms:
-	{
-		const FString ZhBase = GetModelBasePath() + TEXT("sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01/");
-		Config.EncoderPath = ZhBase + TEXT("encoder-epoch-12-avg-2-chunk-16-left-64.onnx");
-		Config.DecoderPath = ZhBase + TEXT("decoder-epoch-12-avg-2-chunk-16-left-64.onnx");
-		Config.JoinerPath  = ZhBase + TEXT("joiner-epoch-12-avg-2-chunk-16-left-64.onnx");
+		ModelDirectory = TEXT("sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01");
+		EncoderName = TEXT("encoder-epoch-12-avg-2-chunk-16-left-64.onnx");
+		DecoderName = TEXT("decoder-epoch-12-avg-2-chunk-16-left-64.onnx");
+		JoinerName = TEXT("joiner-epoch-12-avg-2-chunk-16-left-64.onnx");
 		break;
 	}
+
+	const bool bUseKeywordsFile = KeywordsString.IsEmpty() || LooksLikeMojibake(KeywordsString);
+	TArray<FString> RequiredRelativePaths = {
+		FPaths::Combine(ModelDirectory, EncoderName),
+		FPaths::Combine(ModelDirectory, DecoderName),
+		FPaths::Combine(ModelDirectory, JoinerName),
+		TokensRelativePath
+	};
+	if (bUseKeywordsFile)
+	{
+		RequiredRelativePaths.Add(TEXT("keywords.txt"));
 	}
 
-	Config.TokensPath      = Base + TEXT("tokens.txt");
-	if (KeywordsString.IsEmpty() || LooksLikeMojibake(KeywordsString))
+	const SherpaModelPathResolver::FModelPathResolution Resolution =
+		SherpaModelPathResolver::ResolveDefaultModelSet(RequiredRelativePaths);
+	if (Resolution.bSuccess)
+	{
+		Config.EncoderPath = Resolution.Paths[0];
+		Config.DecoderPath = Resolution.Paths[1];
+		Config.JoinerPath = Resolution.Paths[2];
+		Config.TokensPath = Resolution.Paths[3];
+		if (bUseKeywordsFile)
+		{
+			Config.KeywordsFile = Resolution.Paths[4];
+		}
+		UE_LOG(LogTemp, Log, TEXT("KWS preset model root selected: %s"), *Resolution.Root);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("KWS preset model resolution failed: %s"), *Resolution.ErrorMessage);
+	}
+
+	if (bUseKeywordsFile)
 	{
 		if (!KeywordsString.IsEmpty())
 		{
-			UE_LOG(LogTemp, Warning, TEXT("KWS KeywordsString appears to be mojibake; falling back to plugin keywords.txt"));
+			UE_LOG(LogTemp, Warning, TEXT("KWS KeywordsString appears to be mojibake; falling back to keywords.txt"));
 		}
-		Config.KeywordsFile = GetModelBasePath() + TEXT("keywords.txt");
 	}
 	else
 	{
 		Config.KeywordsString = KeywordsString;
 	}
-	Config.NumThreads      = 1;
-	Config.Provider        = TEXT("cpu");
+	Config.NumThreads = 1;
+	Config.Provider = TEXT("cpu");
 	Config.MaxActivePaths = 4;
 	Config.NumTrailingBlanks = 1;
 	Config.KeywordsScore = 1.0f;
 	Config.KeywordsThreshold = 0.25f;
 
-	UE_LOG(LogTemp, Log, TEXT("KWS preset config: encoder=%s, decoder=%s, joiner=%s, keywords_threshold=%.2f"),
-		*FPaths::GetCleanFilename(Config.EncoderPath),
-		*FPaths::GetCleanFilename(Config.DecoderPath),
-		*FPaths::GetCleanFilename(Config.JoinerPath),
+	UE_LOG(LogTemp, Log, TEXT("KWS preset config: encoder=%s, decoder=%s, joiner=%s, tokens=%s, keywords_threshold=%.2f"),
+		*Config.EncoderPath,
+		*Config.DecoderPath,
+		*Config.JoinerPath,
+		*Config.TokensPath,
 		Config.KeywordsThreshold);
 
 	return Config;
@@ -102,13 +117,40 @@ FSherpaKwsModelConfig USherpaKwsLibrary::MakeCustomConfig(
 	int32 NumThreads, const FString& Provider)
 {
 	FSherpaKwsModelConfig Config;
-	const FString Base = GetModelBasePath() + ModelDir + TEXT("/");
-	Config.EncoderPath = Base + EncoderName;
-	Config.DecoderPath = Base + DecoderName;
-	Config.JoinerPath  = Base + JoinerName;
-	Config.TokensPath  = Base + TokensFileName;
 	Config.KeywordsFile = KeywordsFile;
-	Config.NumThreads   = NumThreads;
-	Config.Provider     = Provider;
+	Config.NumThreads = NumThreads;
+	Config.Provider = Provider;
+
+	if (!FPaths::IsRelative(ModelDir))
+	{
+		FString AbsoluteModelDir = FPaths::ConvertRelativePathToFull(ModelDir);
+		FPaths::NormalizeDirectoryName(AbsoluteModelDir);
+		Config.EncoderPath = FPaths::Combine(AbsoluteModelDir, EncoderName);
+		Config.DecoderPath = FPaths::Combine(AbsoluteModelDir, DecoderName);
+		Config.JoinerPath = FPaths::Combine(AbsoluteModelDir, JoinerName);
+		Config.TokensPath = FPaths::Combine(AbsoluteModelDir, TokensFileName);
+		UE_LOG(LogTemp, Log, TEXT("KWS custom absolute model directory: %s"), *AbsoluteModelDir);
+		return Config;
+	}
+
+	const TArray<FString> RequiredRelativePaths = {
+		FPaths::Combine(ModelDir, EncoderName),
+		FPaths::Combine(ModelDir, DecoderName),
+		FPaths::Combine(ModelDir, JoinerName),
+		FPaths::Combine(ModelDir, TokensFileName)
+	};
+	const SherpaModelPathResolver::FModelPathResolution Resolution =
+		SherpaModelPathResolver::ResolveDefaultModelSet(RequiredRelativePaths);
+	if (!Resolution.bSuccess)
+	{
+		UE_LOG(LogTemp, Error, TEXT("KWS custom relative model resolution failed: %s"), *Resolution.ErrorMessage);
+		return Config;
+	}
+
+	Config.EncoderPath = Resolution.Paths[0];
+	Config.DecoderPath = Resolution.Paths[1];
+	Config.JoinerPath = Resolution.Paths[2];
+	Config.TokensPath = Resolution.Paths[3];
+	UE_LOG(LogTemp, Log, TEXT("KWS custom relative model root selected: %s"), *Resolution.Root);
 	return Config;
 }
